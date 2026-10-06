@@ -49,7 +49,7 @@ Open the **CodingGuru** icon in the activity bar.
 | Area | What it does |
 | --- | --- |
 | **Get started** | Shown when the open folder is not a learning workspace; creates your first goal |
-| **Syllabus** view | Your goal → sections → tasks, with status icons |
+| **Syllabus** view | Your goal → sections → tasks, with status icons. Expand a task to reveal its **Build guide** |
 | **Coach** view | Chat with the coach; quick actions for review / hint / explain / progress / lint |
 
 The **Syllabus** and **Coach** views appear only when an open folder contains a
@@ -57,10 +57,11 @@ The **Syllabus** and **Coach** views appear only when an open folder contains a
 get the **Get started** view, whose button opens the goal wizard — or run
 **CodingGuru: Create Learning Goal** from the command palette.
 
-Work through tasks in order. When you think one is done, hit **Review task** (or the
-check icon on the tree item). The coach reads your code, checks it against the
-task's acceptance criteria, and records a verdict in
-`.codingguru/progress.json`.
+Work through tasks in order. Each task's **Build guide** (a child of the task in the
+tree) opens the matching document from `docs/`, explaining what you will build.
+When you think a task is done, hit **Review task** (or the check icon on the tree
+item). The coach reads your code, checks it against the task's acceptance criteria,
+and records a verdict in `.codingguru/progress.json`.
 
 ## Commands
 
@@ -71,6 +72,7 @@ task's acceptance criteria, and records a verdict in
 | `CodingGuru: Review Task with Coach` | Review the current/selected task |
 | `CodingGuru: Start Task` | Mark a task in progress |
 | `CodingGuru: Mark Task Done` | Mark a task passed manually |
+| `CodingGuru: Open Document` | Open a task or section build guide (also by clicking its tree item) |
 | `CodingGuru: Ask Coach About Progress` | Overall status update |
 | `CodingGuru: Run Lint Check` | Run ESLint / `tsc --noEmit`, publish diagnostics |
 | `CodingGuru: Refresh Syllabus` | Reload the tree |

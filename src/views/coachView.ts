@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ReviewResult } from "../model/types";
+import { ChatEntry, ReviewResult, ToolActivity } from "../model/types";
 import { htmlShell } from "./webview";
 
 export const COACH_VIEW_TYPE = "codingguru.coach";
@@ -29,7 +29,8 @@ export class CoachViewProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly extensionUri: vscode.Uri,
-    private readonly onRequest: (request: CoachRequest) => void
+    private readonly onRequest: (request: CoachRequest) => void,
+    private readonly onReady?: () => void
   ) {}
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -37,14 +38,14 @@ export class CoachViewProvider implements vscode.WebviewViewProvider {
     this.ready = false;
     view.webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "media")],
+      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "dist")],
     };
     view.webview.html = htmlShell({
       webview: view.webview,
       extensionUri: this.extensionUri,
       title: "CodingGuru Coach",
-      style: "media/coach.css",
-      script: "media/coach.js",
+      style: "dist/webview/coach.css",
+      script: "dist/webview/coach.js",
       body: COACH_BODY,
     });
 
@@ -52,6 +53,7 @@ export class CoachViewProvider implements vscode.WebviewViewProvider {
       if (message.type === "ready") {
         this.ready = true;
         this.flush();
+        this.onReady?.();
         return;
       }
       this.onRequest(message as CoachRequest);
@@ -104,6 +106,10 @@ export class CoachViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: "assistantDelta", text });
   }
 
+  thinkingDelta(text: string): void {
+    this.post({ type: "thinkingDelta", text });
+  }
+
   assistantEnd(): void {
     this.post({ type: "assistantEnd" });
   }
@@ -112,8 +118,12 @@ export class CoachViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: "notice", text, kind });
   }
 
-  tool(name: string): void {
-    this.post({ type: "tool", name });
+  tool(tool: ToolActivity): void {
+    this.post({ type: "tool", tool });
+  }
+
+  history(entries: ChatEntry[]): void {
+    this.post({ type: "history", entries });
   }
 
   review(result: ReviewResult): void {

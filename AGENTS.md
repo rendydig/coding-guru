@@ -8,7 +8,7 @@ and provides a read-only OpenCode-powered coach.
 | Command | Purpose |
 | --- | --- |
 | `npm install` | Install dependencies |
-| `npm run build` | Bundle `src/` → `dist/extension.js` with esbuild |
+| `npm run build` | Bundle `src/` → `dist/extension.js` and the coach webview → `dist/webview/coach.{js,css}` with esbuild |
 | `npm run watch` | Rebuild on change |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run smoke` | End-to-end check against a real `opencode serve` (needs the OpenCode CLI and a reachable model) |
@@ -36,6 +36,20 @@ registration, read-only enforcement, and streaming.
 - **OpenCode's SDK types lag the server.** `global.health()` does not exist in
   `1.18.34`, and `message.part.delta` events are emitted but absent from the `Event`
   union. Narrow those events structurally (see `src/opencode/service.ts`).
+- **The coach webview is bundled, not hand-written.** `esbuild.js` compiles
+  `src/webview/coach.ts` (browser/IIFE) to `dist/webview/coach.js` + `coach.css`, and
+  `src/views/coachView.ts` loads them from `dist/webview` (its `localResourceRoots` is
+  `dist`). `media/` now holds only the goal wizard (`wizard.*`) and icons. If you move
+  the output, update `esbuild.js` and `coachView.ts` together.
+- **Streaming carries text, reasoning, and tools.** `StreamHandler` in
+  `src/opencode/service.ts` exposes `onText` / `onReasoning` / `onTool`. Tool parts
+  (`message.part.updated`) fire several times per call (pending → running → completed),
+  so consumers must upsert by `callID` rather than append. `reasoning` parts/deltas are
+  emitted by the server but absent from the SDK unions — narrow them structurally too.
+- **The coach transcript is persisted** to `.codingguru/chat.json`
+  (`readTranscript` / `appendChatEntry` in `src/model/store.ts`). The webview replays it
+  via the `history` message when the panel (re)loads, and groups each assistant turn's
+  reasoning + tool calls into a collapsed "Thinking" block.
 - **The coach must stay read-only.** Its permissions (`edit: deny`, `bash: deny`)
   live in `src/opencode/coach.ts` and are verified by `npm run smoke`. Never loosen
   them without updating that test.

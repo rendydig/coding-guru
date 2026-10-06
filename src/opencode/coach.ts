@@ -23,7 +23,8 @@ the learner should change and why.
 - Keep answers focused. Use short paragraphs and bullet points.
 
 # Reviewing work
-When asked to review a task:
+When asked to review a task, review ONLY that task. Other tasks and sections are
+out of scope, even if their criteria appear in files you read.
 1. Read the relevant files in the workspace.
 2. Judge the work strictly against the task's acceptance criteria.
 3. Report concrete findings (with file and line where possible).
@@ -163,15 +164,14 @@ export function syllabusPrompt(goal: Goal): string {
 
 export function reviewPrompt(options: {
   goal: Goal;
-  syllabus?: Syllabus;
   section: Section;
   task: Task;
   progress?: TaskProgress;
   lintSummary?: string;
 }): string {
-  const { goal, syllabus, section, task, progress, lintSummary } = options;
+  const { goal, section, task, progress, lintSummary } = options;
   const lines = [
-    goalContext(goal, syllabus),
+    goalContext(goal),
     "",
     taskContext(section, task),
   ];
@@ -187,8 +187,13 @@ export function reviewPrompt(options: {
   lines.push(
     "",
     "## Job",
-    "Read the learner's code in this project and review their work on the task above.",
-    "Judge strictly against the acceptance criteria. Do not be generous.",
+    "Read the learner's code in this project and review their work on the ONE task above.",
+    "Review only this task. Ignore every other task and section, and ignore any acceptance",
+    "criteria for other tasks that you find in files such as README.md or docs/.",
+    "Do NOT return needs_work because other tasks or sections are unfinished — this task",
+    "passes or fails solely on its own acceptance criteria.",
+    "Judge strictly against those criteria and cite the file/line you read as evidence.",
+    "Only return needs_work if a criterion for this task is genuinely unmet. Do not be generous.",
     "",
     "Reply with ONLY a JSON object in exactly this shape (no prose, no code fences):",
     JSON.stringify(

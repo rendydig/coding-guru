@@ -1,6 +1,8 @@
+import * as path from "path";
 import * as vscode from "vscode";
-import { readProgress, readSyllabus, Store } from "../model/store";
+import { docsDir, readProgress, readSyllabus, Store } from "../model/store";
 import { Goal, Progress, Section, STATUS_LABEL, Syllabus, Task, TaskProgress, TaskStatus } from "../model/types";
+import { sectionFileName, taskFileName } from "../syllabus/documents";
 
 export interface GoalNode {
   kind: "goal";
@@ -23,9 +25,17 @@ export interface TaskNode {
   goal: Goal;
   syllabus: Syllabus;
   section: Section;
+  sectionIndex: number;
+  taskIndex: number;
   task: Task;
   progress: TaskProgress;
   isCurrent: boolean;
+}
+
+export interface DocNode {
+  kind: "doc";
+  label: string;
+  file: string;
 }
 
 export interface InfoNode {
@@ -33,7 +43,7 @@ export interface InfoNode {
   label: string;
 }
 
-export type GuruNode = GoalNode | SectionNode | TaskNode | InfoNode;
+export type GuruNode = GoalNode | SectionNode | TaskNode | DocNode | InfoNode;
 
 const STATUS_ICON: Record<TaskStatus, string> = {
   todo: "circle-outline",
@@ -48,6 +58,14 @@ const STATUS_COLOR: Record<TaskStatus, string> = {
   needs_work: "charts.yellow",
   passed: "charts.green",
 };
+
+function sectionDocPath(goal: Goal, section: Section, sectionIndex: number): string {
+  return path.join(docsDir(goal.workspacePath), sectionFileName(section, sectionIndex));
+}
+
+function taskDocPath(goal: Goal, task: Task, sectionIndex: number, taskIndex: number): string {
+  return path.join(docsDir(goal.workspacePath), taskFileName(task, sectionIndex, taskIndex));
+}
 
 function statusOf(progress: Progress, taskId: string): TaskProgress {
   return progress.tasks[taskId] ?? { status: "todo", attempts: 0 };
@@ -142,7 +160,7 @@ export class SyllabusTreeProvider implements vscode.TreeDataProvider<GuruNode> {
       case "task": {
         const item = new vscode.TreeItem(
           node.task.title,
-          vscode.TreeItemCollapsibleState.None
+          vscode.TreeItemCollapsibleState.Collapsed
         );
         item.description = node.isCurrent
           ? `▶ ${STATUS_LABEL[node.progress.status]}`
@@ -156,6 +174,18 @@ export class SyllabusTreeProvider implements vscode.TreeDataProvider<GuruNode> {
         item.command = {
           command: "codingguru.selectTask",
           title: "Focus task",
+          arguments: [node],
+        };
+        return item;
+      }
+      case "doc": {
+        const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.None);
+        item.iconPath = new vscode.ThemeIcon("book");
+        item.contextValue = "codingguru.doc";
+        item.tooltip = node.file;
+        item.command = {
+          command: "codingguru.openDocument",
+          title: "Open document",
           arguments: [node],
         };
         return item;
@@ -188,15 +218,33 @@ export class SyllabusTreeProvider implements vscode.TreeDataProvider<GuruNode> {
     }
 
     if (node.kind === "section") {
-      return node.section.tasks.map((task) => ({
+      const guide: DocNode = {
+        kind: "doc",
+        label: "Section guide",
+        file: sectionDocPath(node.goal, node.section, node.index),
+      };
+      const tasks: TaskNode[] = node.section.tasks.map((task, taskIndex) => ({
         kind: "task" as const,
         goal: node.goal,
         syllabus: node.syllabus,
         section: node.section,
+        sectionIndex: node.index,
+        taskIndex,
         task,
         progress: statusOf(node.progress, task.id),
         isCurrent: task.id === this.getCurrentTaskId(),
       }));
+      return [guide, ...tasks];
+    }
+
+    if (node.kind === "task") {
+      return [
+        {
+          kind: "doc" as const,
+          label: "Build guide",
+          file: taskDocPath(node.goal, node.task, node.sectionIndex, node.taskIndex),
+        },
+      ];
     }
 
     return [];

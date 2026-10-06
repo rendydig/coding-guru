@@ -2,13 +2,14 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
-import { Goal, Progress, Syllabus, TaskProgress } from "./types";
+import { ChatEntry, Goal, Progress, Syllabus, TaskProgress, Transcript } from "./types";
 
 export const CG_DIR = ".codingguru";
 export const DOCS_DIR = "docs";
 export const GOAL_FILE = "goal.json";
 export const SYLLABUS_FILE = "syllabus.json";
 export const PROGRESS_FILE = "progress.json";
+export const CHAT_FILE = "chat.json";
 export const COACH_PROMPT_FILE = "coach-prompt.md";
 export const OPENCODE_CONFIG_FILE = "opencode.json";
 export const AGENTS_FILE = "AGENTS.md";
@@ -48,6 +49,10 @@ export function syllabusFile(workspacePath: string): string {
 
 export function progressFile(workspacePath: string): string {
   return path.join(cgDir(workspacePath), PROGRESS_FILE);
+}
+
+export function chatFile(workspacePath: string): string {
+  return path.join(cgDir(workspacePath), CHAT_FILE);
 }
 
 export function coachPromptFile(workspacePath: string): string {
@@ -108,6 +113,47 @@ export function readProgress(workspacePath: string): Progress {
 export function writeProgress(workspacePath: string, progress: Progress): void {
   progress.updatedAt = new Date().toISOString();
   writeJson(progressFile(workspacePath), progress);
+}
+
+const MAX_CHAT_ENTRIES = 200;
+const MAX_REASONING_CHARS = 20000;
+
+export function readTranscript(workspacePath: string): Transcript {
+  const existing = readJson<Transcript>(chatFile(workspacePath));
+  if (existing && Array.isArray(existing.entries)) {
+    return existing;
+  }
+  const goal = readGoal(workspacePath);
+  return { goalId: goal?.id ?? "", sessionIndex: 1, entries: [], updatedAt: new Date().toISOString() };
+}
+
+export function writeTranscript(workspacePath: string, transcript: Transcript): void {
+  transcript.updatedAt = new Date().toISOString();
+  if (transcript.entries.length > MAX_CHAT_ENTRIES) {
+    transcript.entries = transcript.entries.slice(-MAX_CHAT_ENTRIES);
+  }
+  writeJson(chatFile(workspacePath), transcript);
+}
+
+/**
+ * Appends an entry stamped with the transcript's current session index. The
+ * session index is filled here so callers never have to read it first.
+ */
+export function appendChatEntry(workspacePath: string, entry: Omit<ChatEntry, "sessionIndex">): void {
+  const transcript = readTranscript(workspacePath);
+  let full: ChatEntry = { sessionIndex: transcript.sessionIndex, ...entry };
+  if (full.reasoning && full.reasoning.length > MAX_REASONING_CHARS) {
+    full = { ...full, reasoning: `${full.reasoning.slice(0, MAX_REASONING_CHARS)}\n\n…` };
+  }
+  transcript.entries.push(full);
+  writeTranscript(workspacePath, transcript);
+}
+
+/** Marks a session boundary; subsequent entries land in the new session. */
+export function bumpSessionIndex(workspacePath: string): void {
+  const transcript = readTranscript(workspacePath);
+  transcript.sessionIndex += 1;
+  writeTranscript(workspacePath, transcript);
 }
 
 export function listGoals(): Goal[] {

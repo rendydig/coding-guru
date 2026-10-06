@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { CodingGuruController } from "./controller";
 import { Goal } from "./model/types";
-import { GoalNode, TaskNode } from "./views/syllabusTree";
+import { DocNode, GoalNode, TaskNode } from "./views/syllabusTree";
 
 export function registerCommands(context: vscode.ExtensionContext, controller: CodingGuruController): void {
   context.subscriptions.push(
@@ -20,6 +20,8 @@ export function registerCommands(context: vscode.ExtensionContext, controller: C
     vscode.commands.registerCommand("codingguru.reviewTask", (node?: TaskNode) => controller.reviewTask(node)),
 
     vscode.commands.registerCommand("codingguru.markTaskDone", (node: TaskNode) => controller.markTaskDone(node)),
+
+    vscode.commands.registerCommand("codingguru.openDocument", (node: DocNode) => controller.openDocument(node)),
 
     vscode.commands.registerCommand("codingguru.openCoach", () =>
       vscode.commands.executeCommand("codingguru.coach.focus")

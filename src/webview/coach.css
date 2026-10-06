@@ -91,6 +91,59 @@ body {
   }
 }
 
+/* ------------------------------------------------------- raw/rendered toggle */
+
+.bubble.user,
+.bubble.assistant {
+  position: relative;
+}
+
+/* Leave room in the top-right corner for the toggle. */
+.bubble.user .body,
+.bubble.assistant .body {
+  padding-right: 18px;
+}
+
+.raw-toggle {
+  padding: 0 4px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.72em;
+  line-height: 1.5;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.4;
+}
+
+.raw-toggle:hover,
+.raw-toggle:focus-visible {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+.raw-toggle.active {
+  opacity: 1;
+  color: var(--vscode-textLink-foreground);
+}
+
+.bubble > .raw-toggle {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+}
+
+.body .raw,
+.thinking-reasoning .raw {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
 /* Summary bubble: deliberately distinct from both user and assistant bubbles.
    color-mix is supported by the webview's Electron/Chromium; the plain
    declaration above it is the fallback. */
@@ -327,10 +380,134 @@ body {
   color: var(--vscode-errorForeground);
 }
 
-.tool {
-  font-size: 0.85em;
-  font-style: italic;
+/* ------------------------------------------------------- thinking block */
+
+.thinking {
+  align-self: stretch;
+  max-width: 100%;
+  border: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.25));
+  border-radius: 8px;
+  background: var(--vscode-editor-background);
   color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+  overflow: hidden;
+}
+
+.thinking-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.thinking-label:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.12));
+}
+
+.thinking-reasoning {
+  padding: 0 10px 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.thinking-reasoning > :first-child {
+  margin-top: 0;
+}
+
+.thinking-reasoning > :last-child {
+  margin-bottom: 0;
+}
+
+.thinking-reasoning p {
+  margin: 4px 0;
+}
+
+.thinking:not([open]) .thinking-reasoning,
+.thinking:not([open]) .thinking-actions,
+.thinking:not([open]) .tool-list {
+  display: none;
+}
+
+.thinking-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 8px 0;
+}
+
+.tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 10px 8px;
+}
+
+.tool-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tool-status {
+  flex: none;
+  width: 12px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tool-status.completed {
+  color: var(--vscode-charts-green);
+}
+
+.tool-status.error {
+  color: var(--vscode-errorForeground);
+}
+
+/* Pending/running tools render as a small spinner. */
+.tool-status.pending,
+.tool-status.running {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--vscode-descriptionForeground);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: cg-spin 0.8s linear infinite;
+}
+
+@keyframes cg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-status.pending,
+  .tool-status.running {
+    animation: none;
+  }
+}
+
+.tool-name {
+  flex: none;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.tool-target {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  opacity: 0.85;
 }
 
 .review {

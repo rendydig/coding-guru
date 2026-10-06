@@ -1,15 +1,17 @@
+import * as fs from "fs";
 import * as vscode from "vscode";
 import { LintService } from "./lint/lintService";
-import { readProgress, readSyllabus, Store, writeProgress } from "./model/store";
-import { Goal, GoalInput, ReviewResult, Section, STATUS_LABEL, Syllabus, Task, TaskProgress } from "./model/types";
+import { appendChatEntry, bumpSessionIndex, readProgress, readSyllabus, readTranscript, Store, writeProgress } from "./model/store";
+import { Goal, GoalInput, ReviewResult, Section, STATUS_LABEL, Syllabus, Task, TaskProgress, ToolActivity } from "./model/types";
 import { goalContext, normalizeReview, progressPrompt, reviewPrompt, taskContext } from "./opencode/coach";
 import { OpencodeService } from "./opencode/service";
 import { GoalWizard } from "./panels/goalWizard";
+import { writeDocuments } from "./syllabus/documents";
 import { countTasks, generateSyllabus } from "./syllabus/generate";
 import { createGoal, prepareWorkspace, writeSyllabus } from "./syllabus/scaffold";
 import { nowIso } from "./util/ids";
 import { CoachRequest, CoachViewProvider } from "./views/coachView";
-import { SyllabusTreeProvider, TaskNode } from "./views/syllabusTree";
+import { DocNode, SyllabusTreeProvider, TaskNode } from "./views/syllabusTree";
 
 const HINT_INSTRUCTION =
   "Give me a hint for the current task. Do not give me the full answer — nudge me toward the next concrete step and tell me what to look at.";
@@ -31,13 +33,19 @@ export class CodingGuruController implements vscode.Disposable {
   private readonly output = vscode.window.createOutputChannel("CodingGuru");
   private currentTaskId?: string;
   private busy = false;
+  /** Workspace whose transcript was last replayed into the Coach view. */
+  private historyWorkspace?: string;
 
   constructor(
     private readonly store: Store,
     private readonly extensionUri: vscode.Uri
   ) {
     this.service = new OpencodeService((message) => this.log(message));
-    this.coach = new CoachViewProvider(extensionUri, (request) => void this.handleRequest(request));
+    this.coach = new CoachViewProvider(
+      extensionUri,
+      (request) => void this.handleRequest(request),
+      () => this.sendHistory()
+    );
     this.tree = new SyllabusTreeProvider(store, () => this.currentTaskId);
     store.onDidChange(() => this.updateContext());
     this.updateContext();
@@ -105,6 +113,28 @@ export class CodingGuruController implements vscode.Disposable {
     this.updateContext();
   }
 
+  async openDocument(node: DocNode): Promise<void> {
+    const goal = this.store.active;
+    if (!goal) {
+      this.coach.notice("Open a learning workspace first.", "error");
+      return;
+    }
+    if (!fs.existsSync(node.file)) {
+      // Goals created before build guides existed have no docs/ tree; the guides
+      // are deterministic, so regenerate them from the syllabus on demand.
+      const syllabus = readSyllabus(goal.workspacePath);
+      if (syllabus) {
+        writeDocuments(goal, syllabus);
+      }
+    }
+    if (!fs.existsSync(node.file)) {
+      this.coach.notice("That build guide is missing. Refresh the syllabus and try again.", "error");
+      return;
+    }
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(node.file));
+    await vscode.window.showTextDocument(document, { preview: true });
+  }
+
   async runLint(): Promise<void> {
     const goal = this.store.active;
     if (!goal) {
@@ -151,7 +181,6 @@ export class CodingGuruController implements vscode.Disposable {
       const progress = readProgress(goal.workspacePath);
       const prompt = reviewPrompt({
         goal,
-        syllabus,
         section: target.section,
         task: target.task,
         progress: progress.tasks[target.task.id],
@@ -166,6 +195,7 @@ export class CodingGuruController implements vscode.Disposable {
       }
       this.applyReview(goal, target.task.id, review);
       this.coach.review(review);
+      appendChatEntry(goal.workspacePath, { role: "review", at: nowIso(), review });
     } catch (error) {
       this.coach.notice(error instanceof Error ? error.message : String(error), "error");
     } finally {
@@ -252,13 +282,32 @@ export class CodingGuruController implements vscode.Disposable {
     this.coach.busy(true);
     this.coach.user(display);
     this.coach.assistantStart();
+
+    const reasoning: string[] = [];
+    const tools = new Map<string, ToolActivity>();
     try {
-      await this.withSession(goal, (sessionId) =>
-        this.service.promptStreaming(goal.workspacePath, sessionId, prompt, {
+      appendChatEntry(goal.workspacePath, { role: "user", text: display, at: nowIso() });
+      let final = "";
+      await this.withSession(goal, async (sessionId) => {
+        final = await this.service.promptStreaming(goal.workspacePath, sessionId, prompt, {
           onText: (delta) => this.coach.delta(delta),
-          onTool: (name) => this.coach.tool(name),
-        })
-      );
+          onReasoning: (delta) => {
+            reasoning.push(delta);
+            this.coach.thinkingDelta(delta);
+          },
+          onTool: (tool) => {
+            tools.set(tool.callID, tool);
+            this.coach.tool(tool);
+          },
+        });
+      });
+      appendChatEntry(goal.workspacePath, {
+        role: "assistant",
+        text: final,
+        at: nowIso(),
+        reasoning: reasoning.join("") || undefined,
+        tools: tools.size ? [...tools.values()] : undefined,
+      });
     } catch (error) {
       this.coach.notice(error instanceof Error ? error.message : String(error), "error");
     } finally {
@@ -392,6 +441,7 @@ export class CodingGuruController implements vscode.Disposable {
       }
       this.log(`Session ${sessionId} is stale; starting a new one.`);
       this.sessions.delete(goal.workspacePath);
+      bumpSessionIndex(goal.workspacePath);
       return fn(await this.ensureSession(goal));
     }
   }
@@ -400,6 +450,7 @@ export class CodingGuruController implements vscode.Disposable {
     const goal = this.store.active;
     if (!goal) {
       this.coach.setContext({ hasGoal: false });
+      this.historyWorkspace = undefined;
       return;
     }
     const syllabus = readSyllabus(goal.workspacePath);
@@ -413,5 +464,21 @@ export class CodingGuruController implements vscode.Disposable {
       status: target ? STATUS_LABEL[progress.tasks[target.task.id]?.status ?? "todo"] : undefined,
       workspacePath: goal.workspacePath,
     });
+    // Replay when the active goal changes, but never mid-turn — that would wipe
+    // the reply being streamed.
+    if (!this.busy && goal.workspacePath !== this.historyWorkspace) {
+      this.sendHistory();
+    }
+  }
+
+  /** Replays the persisted transcript when the Coach panel (re)loads. */
+  private sendHistory(): void {
+    const goal = this.store.active;
+    if (!goal) {
+      this.historyWorkspace = undefined;
+      return;
+    }
+    this.historyWorkspace = goal.workspacePath;
+    this.coach.history(readTranscript(goal.workspacePath).entries);
   }
 }

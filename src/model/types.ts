@@ -86,6 +86,38 @@ export interface ReviewResult {
   nextSteps: string[];
 }
 
+export type ToolStatus = "pending" | "running" | "completed" | "error";
+
+/** One OpenCode tool invocation, keyed by `callID` so updates land in place. */
+export interface ToolActivity {
+  callID: string;
+  name: string;
+  status: ToolStatus;
+  /** Server-provided description of the call, when available. */
+  title?: string;
+  /** The thing the tool acted on (path, pattern, url, …). */
+  target?: string;
+}
+
+export type ChatRole = "user" | "assistant" | "notice" | "review";
+
+export interface ChatEntry {
+  sessionIndex: number;
+  role: ChatRole;
+  text?: string;
+  at: string;
+  reasoning?: string;
+  tools?: ToolActivity[];
+  review?: ReviewResult;
+}
+
+export interface Transcript {
+  goalId: string;
+  sessionIndex: number;
+  entries: ChatEntry[];
+  updatedAt: string;
+}
+
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "To do",
   in_progress: "In progress",

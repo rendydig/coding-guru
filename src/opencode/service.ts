@@ -1,12 +1,36 @@
 import { createOpencodeClient, OpencodeClient, Part, TextPart } from "@opencode-ai/sdk";
 import * as vscode from "vscode";
+import { ToolActivity, ToolStatus } from "../model/types";
 import { extractJson } from "../util/json";
 import { buildOpencodeConfig, COACH_AGENT } from "./coach";
 import { ServerHandle, startOpencodeServer } from "./server";
 
 export interface StreamHandler {
   onText(delta: string): void;
-  onTool?(name: string): void;
+  onReasoning?(delta: string): void;
+  onTool?(tool: ToolActivity): void;
+}
+
+/** Input key that best describes what each tool acted on, mirroring OpenCode's UI. */
+const TOOL_TARGET_KEYS: Record<string, string> = {
+  read: "filePath",
+  list: "path",
+  glob: "pattern",
+  grep: "pattern",
+  webfetch: "url",
+  websearch: "query",
+  bash: "command",
+};
+
+function toolTarget(name: string, input: Record<string, unknown> | undefined): string | undefined {
+  const value = input && TOOL_TARGET_KEYS[name] ? input[TOOL_TARGET_KEYS[name]] : undefined;
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function toolStatus(status: string | undefined): ToolStatus {
+  return status === "pending" || status === "running" || status === "completed" || status === "error"
+    ? status
+    : "running";
 }
 
 function textOfParts(parts: Part[] | undefined): string {
@@ -122,6 +146,7 @@ export class OpencodeService implements vscode.Disposable {
     // `message.part.delta` is emitted by the server but missing from the SDK's
     // event union, so events are narrowed structurally rather than by type.
     let sawPartDelta = false;
+    let sawReasoningDelta = false;
     const onEvent = (event: unknown) => {
       const typed = event as { type?: string; properties?: Record<string, unknown> };
       if (!typed || typeof typed.type !== "string") {
@@ -130,14 +155,20 @@ export class OpencodeService implements vscode.Disposable {
       const props = typed.properties ?? {};
 
       if (typed.type === "message.part.delta") {
-        if (props.sessionID !== sessionId || props.field !== "text") {
+        if (props.sessionID !== sessionId) {
           return;
         }
         const delta = props.delta;
-        if (typeof delta === "string" && delta) {
+        if (typeof delta !== "string" || !delta) {
+          return;
+        }
+        if (props.field === "text") {
           sawPartDelta = true;
           streamed += delta;
           handler.onText(delta);
+        } else if (props.field === "reasoning") {
+          sawReasoningDelta = true;
+          handler.onReasoning?.(delta);
         }
         return;
       }
@@ -148,7 +179,28 @@ export class OpencodeService implements vscode.Disposable {
           return;
         }
         if (part.type === "tool") {
-          handler.onTool?.(part.tool);
+          const tool = part as typeof part & {
+            callID?: string;
+            state?: { status?: string; input?: Record<string, unknown>; title?: string };
+          };
+          const state = tool.state ?? {};
+          handler.onTool?.({
+            callID: tool.callID ?? tool.tool,
+            name: tool.tool,
+            status: toolStatus(state.status),
+            title: typeof state.title === "string" ? state.title : undefined,
+            target: toolTarget(tool.tool, state.input),
+          });
+          return;
+        }
+        // `reasoning` parts are emitted by the server but absent from the SDK's
+        // `Part` union in 1.18.34, so narrow structurally like the delta events.
+        if ((part as { type?: string }).type === "reasoning") {
+          const text = (part as { text?: string }).text;
+          if (!sawReasoningDelta && typeof text === "string" && text) {
+            sawReasoningDelta = true;
+            handler.onReasoning?.(text);
+          }
           return;
         }
         const delta = props.delta;
