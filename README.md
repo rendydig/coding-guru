@@ -9,16 +9,18 @@ syllabus, scaffolds a learning workspace, and coaches you through it with a
 1. **Describe a goal** — "I want to build a Node.js + Express app with PostgreSQL."
 2. **Get a syllabus** — CodingGuru generates sections and tasks, each with
    observable acceptance criteria.
-3. **Get build guides** — one Markdown document per section and per task lands in
-   `docs/`, explaining what you will build, why it matters, and how to verify it.
+3. **Get build guides** — `docs/` gets an index and one overview per section right
+   away; each task's full manual (setup, step-by-step, a worked example, pitfalls) is
+   written the first time you open it, then cached.
 4. **Get a workspace** — a folder is created at `~/CodingGuru/<goal>/` and opened.
 5. **You write the code** — in VS Code's normal explorer and editor.
 6. **The coach reviews** — ask for a review of any task and get a verdict, findings,
    and the next concrete step. It never edits your files; it explains and nudges.
 
-The coach is an [OpenCode](https://opencode.ai) agent (`codingguru-coach`) defined
-with `edit: deny` and `bash: deny`, so the "coach only" guarantee is enforced by
-OpenCode's permission system, not just by prompt wording.
+Two read-only [OpenCode](https://opencode.ai) agents back this: `codingguru-coach`
+(coaching and reviews) and `codingguru-author` (the build manuals), both defined with
+`edit: deny` and `bash: deny`, so the "never touches your files" guarantee is enforced
+by OpenCode's permission system, not just by prompt wording.
 
 ## Requirements
 
@@ -58,10 +60,12 @@ get the **Get started** view, whose button opens the goal wizard — or run
 **CodingGuru: Create Learning Goal** from the command palette.
 
 Work through tasks in order. Each task's **Build guide** (a child of the task in the
-tree) opens the matching document from `docs/`, explaining what you will build.
-When you think a task is done, hit **Review task** (or the check icon on the tree
-item). The coach reads your code, checks it against the task's acceptance criteria,
-and records a verdict in `.codingguru/progress.json`.
+tree) is written on first open and then cached in `docs/` — it walks through setup, the
+steps, a complete worked example, and the mistakes to avoid. Right-click it and pick
+**Regenerate Build Guide** to rebuild it. When you think a task is done, hit
+**Review task** (or the check icon on the tree item). The coach reads your code, checks
+it against the task's acceptance criteria, and records a verdict in
+`.codingguru/progress.json`.
 
 ## Commands
 
@@ -73,6 +77,7 @@ and records a verdict in `.codingguru/progress.json`.
 | `CodingGuru: Start Task` | Mark a task in progress |
 | `CodingGuru: Mark Task Done` | Mark a task passed manually |
 | `CodingGuru: Open Document` | Open a task or section build guide (also by clicking its tree item) |
+| `CodingGuru: Regenerate Build Guide` | Rewrite a task's cached manual (right-click its guide in the tree) |
 | `CodingGuru: Ask Coach About Progress` | Overall status update |
 | `CodingGuru: Run Lint Check` | Run ESLint / `tsc --noEmit`, publish diagnostics |
 | `CodingGuru: Refresh Syllabus` | Reload the tree |
@@ -102,13 +107,16 @@ and records a verdict in `.codingguru/progress.json`.
     │   └── coach-prompt.md           # the coach persona
     ├── docs/
     │   ├── README.md                 # table of contents
-    │   ├── 01-<section>.md           # section overview
-    │   └── 01-01-<task>.md           # task build guide
-    ├── opencode.json                 # read-only coach agent definition
+    │   ├── 01-<section>.md           # section overview (written at creation)
+    │   └── 01-01-<task>.md           # task build guide (written on first open)
+    ├── opencode.json                 # read-only coach + author agent definitions
     ├── AGENTS.md                     # "do not write code for the learner" rules
     ├── README.md                     # the syllabus, human-readable, links into docs/
     └── … your code
 ```
+
+`docs/` is safe to delete: the index and section overviews are regenerated
+deterministically, and each task guide is re-authored the next time you open it.
 
 ## Architecture
 

@@ -2,6 +2,8 @@ import { Goal, ReviewResult, Section, Syllabus, Task, TaskProgress } from "../mo
 
 export const COACH_AGENT = "codingguru-coach";
 
+export const AUTHOR_AGENT = "codingguru-author";
+
 /**
  * The coach persona. Kept as a constant because it is injected inline through
  * `OPENCODE_CONFIG_CONTENT` (where `{file:…}` references cannot resolve).
@@ -37,6 +39,35 @@ out of scope, even if their criteria appear in files you read.
   say so and ask the learner where it lives.
 - Return JSON exactly as requested when a JSON format is specified, and nothing else.`;
 
+/**
+ * The guide author. Unlike the coach it *is* expected to show complete code,
+ * because its output is a reference manual rather than a nudge. It stays
+ * read-only: it only ever writes text back to us.
+ */
+export const AUTHOR_PERSONA = `You are CodingGuru's build-guide author.
+You write the manual a learner follows to complete ONE syllabus task, start to finish.
+Unlike a tutor, you ARE expected to show complete, runnable code and exact commands.
+
+# What you produce
+- A single Markdown document, ready to read. No preamble, no "here is your guide", no closing remarks.
+- Never wrap the whole document in a code fence.
+- Assume a beginner: never reference a file, tool, or concept you have not introduced.
+
+# Required sections, in this order
+## Before you start
+Prerequisites and setup. Give copy-pasteable commands and name the exact files or folders to create.
+## Step by step
+4 to 8 numbered steps. Each step names the file or command it touches and the result the learner should see.
+## Full example
+Complete, runnable code for this task, with the file path above each block. This is a reference — say that the learner should still type it themselves.
+## Watch out for
+The mistakes people make on this task and how to avoid them.
+
+# Rules
+- Stay on this one task; do not solve the whole project.
+- You NEVER write, edit, create, or delete files and NEVER run shell commands. You only write text.
+- Match the learner's stack and level. Keep it focused and skimmable.`;
+
 export interface OpencodeConfig {
   default_agent: string;
   model?: string;
@@ -44,6 +75,12 @@ export interface OpencodeConfig {
 }
 
 export function buildOpencodeConfig(options: { model?: string; allowBash: boolean }): OpencodeConfig {
+  const permission = {
+    edit: "deny",
+    bash: options.allowBash ? "ask" : "deny",
+    webfetch: "ask",
+    websearch: "ask",
+  };
   const config: OpencodeConfig = {
     default_agent: COACH_AGENT,
     agent: {
@@ -51,12 +88,13 @@ export function buildOpencodeConfig(options: { model?: string; allowBash: boolea
         description: "CodingGuru read-only learning coach. Never edits files.",
         mode: "primary",
         prompt: COACH_PERSONA,
-        permission: {
-          edit: "deny",
-          bash: options.allowBash ? "ask" : "deny",
-          webfetch: "ask",
-          websearch: "ask",
-        },
+        permission,
+      },
+      [AUTHOR_AGENT]: {
+        description: "CodingGuru read-only build-guide author. Never edits files.",
+        mode: "primary",
+        prompt: AUTHOR_PERSONA,
+        permission,
       },
     },
   };
@@ -112,28 +150,41 @@ export function taskContext(section: Section, task: Task): string {
   return lines.join("\n");
 }
 
-export function syllabusPrompt(goal: Goal): string {
-  return [
-    goalContext(goal),
-    "",
-    "## Job",
-    "Design a practical, project-based syllabus that takes this learner from where they are",
-    "to achieving the goal. Order sections so each one builds on the last, and make every task",
-    "concrete and verifiable — something the learner can actually build or demonstrate.",
-    "",
-    "Rules:",
-    "- 4 to 8 sections; 2 to 5 tasks per section.",
-    "- Each task must be independently completable and checkable.",
-    "- Acceptance criteria must be observable (e.g. 'server responds 200 on GET /health').",
-    "- Include verification steps (commands or manual checks) where useful.",
-    "- Assume the learner starts with a fresh, empty project directory.",
-    "- For every section, write an `overview` describing what the learner will have built by the end.",
-    "- For every task, describe the concrete artifact in `deliverable` (what they will build), a one-sentence `why`, 2 to 5 `concepts`, and a 3 to 6 item `steps` outline.",
-    "- Keep `deliverable`, `why`, and each list item to a single short sentence so the JSON stays compact.",
-    "",
-    "Reply with ONLY a JSON object in exactly this shape (no prose, no code fences):",
-    JSON.stringify(
-      {
+export function syllabusPrompt(goal: Goal, options?: { compact?: boolean }): string {
+  const compact = options?.compact ?? false;
+  const rules = compact
+    ? [
+        "- 3 to 6 sections; 2 to 4 tasks per section.",
+        "- Keep every field short so the JSON stays small.",
+      ]
+    : [
+        "- 4 to 8 sections; 2 to 5 tasks per section.",
+        "- Each task must be independently completable and checkable.",
+        "- Acceptance criteria must be observable (e.g. 'server responds 200 on GET /health').",
+        "- Include verification steps (commands or manual checks) where useful.",
+        "- Assume the learner starts with a fresh, empty project directory.",
+        "- For every section, write an `overview` describing what the learner will have built by the end.",
+        "- For every task, describe the concrete artifact in `deliverable` (what they will build), a one-sentence `why`, 2 to 5 `concepts`, and a 3 to 6 item `steps` outline.",
+        "- Keep `deliverable`, `why`, and each list item to a single short sentence so the JSON stays compact.",
+      ];
+  const schema = compact
+    ? {
+        title: "string",
+        sections: [
+          {
+            title: "string",
+            description: "string",
+            tasks: [
+              {
+                title: "string",
+                description: "string",
+                acceptanceCriteria: ["string"],
+              },
+            ],
+          },
+        ],
+      }
+    : {
         title: "string",
         sections: [
           {
@@ -155,10 +206,35 @@ export function syllabusPrompt(goal: Goal): string {
             ],
           },
         ],
-      },
-      null,
-      2
-    ),
+      };
+  return [
+    goalContext(goal),
+    "",
+    "## Job",
+    "Design a practical, project-based syllabus that takes this learner from where they are",
+    "to achieving the goal. Order sections so each one builds on the last, and make every task",
+    "concrete and verifiable — something the learner can actually build or demonstrate.",
+    "",
+    "Rules:",
+    ...rules,
+    "",
+    "Reply with ONLY a JSON object in exactly this shape (no prose, no code fences):",
+    JSON.stringify(schema, null, 2),
+  ].join("\n");
+}
+
+export function guidePrompt(goal: Goal, syllabus: Syllabus, section: Section, task: Task): string {
+  return [
+    goalContext(goal, syllabus),
+    "",
+    taskContext(section, task),
+    "",
+    "## Job",
+    `Write the build manual for the task "${task.title}" so a beginner can complete it from`,
+    "your document alone. Cover what to set up, the steps to build it, a complete worked",
+    "example they can compare against, and the mistakes to avoid.",
+    "",
+    "Reply with the Markdown document only — no JSON, and no code fence around the whole reply.",
   ].join("\n");
 }
 

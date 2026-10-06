@@ -52,9 +52,12 @@ registration, read-only enforcement, and streaming.
   reasoning + tool calls into a collapsed "Thinking" block.
 - **The coach must stay read-only.** Its permissions (`edit: deny`, `bash: deny`)
   live in `src/opencode/coach.ts` and are verified by `npm run smoke`. Never loosen
-  them without updating that test.
+  them without updating that test. The `codingguru-author` agent shares the same
+  permissions — it may show complete code in a manual, but it still never edits files.
 - **`OPENCODE_CONFIG_CONTENT` merges with the user's global OpenCode config**, so the
-  coach agent is added without disturbing their providers or default model.
+  coach and author agents are added without disturbing their providers or default model.
+  `scripts/smoke.mjs` re-declares both agents inline (it cannot import the TS); keep it
+  in sync when you change `buildOpencodeConfig`.
 - Learning workspaces are created under `~/CodingGuru/<slug>/` (configurable). All
   per-goal state lives in `.codingguru/*.json`.
 - **Views are gated on the `codingguru.hasWorkspace` context key.** `package.json`
@@ -63,9 +66,12 @@ registration, read-only enforcement, and streaming.
   set in `src/extension.ts` and kept fresh by `Store.onDidChange`; the
   `workspaceContains:**/.codingguru/**` activation event keeps the extension dormant
   in unrelated folders. Keep these in sync if you add or rename views.
-- **Build guides in `docs/` are generated, not authored.** `src/syllabus/documents.ts`
-  renders one index, one overview per section, and one document per task straight from
-  `syllabus.json` — no extra model call. The explanatory fields (`section.overview`,
-  `task.deliverable/why/concepts/steps`) come from the same `syllabusPrompt` call, so if
-  you change that JSON schema, update the parser in `generate.ts` and the renderer in
-  `documents.ts` together.
+- **`docs/` mixes deterministic and authored content.** `src/syllabus/documents.ts`
+  renders the index (`docs/README.md`) and one overview per section straight from
+  `syllabus.json` — no model call. **Task guides are authored on demand**: the first time
+  a task's guide is opened, `src/syllabus/guides.ts` asks the `codingguru-author` agent
+  for a Markdown manual and caches it via `taskGuideMarkdown` (deterministic header +
+  authored body + footer). The syllabus schema fields (`section.overview`,
+  `task.deliverable/why/concepts/steps`) still come from `syllabusPrompt`, so changing
+  that JSON means updating `generate.ts` and `documents.ts` together. `npm run docs:check`
+  covers the deterministic half and the guide composition.

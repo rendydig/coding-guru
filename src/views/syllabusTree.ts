@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { docsDir, readProgress, readSyllabus, Store } from "../model/store";
@@ -36,6 +37,9 @@ export interface DocNode {
   kind: "doc";
   label: string;
   file: string;
+  scope: "section" | "task";
+  sectionIndex: number;
+  taskIndex?: number;
 }
 
 export interface InfoNode {
@@ -179,10 +183,11 @@ export class SyllabusTreeProvider implements vscode.TreeDataProvider<GuruNode> {
         return item;
       }
       case "doc": {
+        const generated = fs.existsSync(node.file);
         const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.None);
-        item.iconPath = new vscode.ThemeIcon("book");
-        item.contextValue = "codingguru.doc";
-        item.tooltip = node.file;
+        item.iconPath = new vscode.ThemeIcon(generated ? "book" : "sparkle");
+        item.contextValue = node.scope === "task" ? "codingguru.doc.task" : "codingguru.doc.section";
+        item.tooltip = generated ? node.file : "Generated on first open — click to write this guide.";
         item.command = {
           command: "codingguru.openDocument",
           title: "Open document",
@@ -222,6 +227,8 @@ export class SyllabusTreeProvider implements vscode.TreeDataProvider<GuruNode> {
         kind: "doc",
         label: "Section guide",
         file: sectionDocPath(node.goal, node.section, node.index),
+        scope: "section",
+        sectionIndex: node.index,
       };
       const tasks: TaskNode[] = node.section.tasks.map((task, taskIndex) => ({
         kind: "task" as const,
@@ -238,11 +245,15 @@ export class SyllabusTreeProvider implements vscode.TreeDataProvider<GuruNode> {
     }
 
     if (node.kind === "task") {
+      const file = taskDocPath(node.goal, node.task, node.sectionIndex, node.taskIndex);
       return [
         {
           kind: "doc" as const,
-          label: "Build guide",
-          file: taskDocPath(node.goal, node.task, node.sectionIndex, node.taskIndex),
+          label: fs.existsSync(file) ? "Build guide" : "Generate build guide",
+          file,
+          scope: "task" as const,
+          sectionIndex: node.sectionIndex,
+          taskIndex: node.taskIndex,
         },
       ];
     }

@@ -106,11 +106,11 @@ export class OpencodeService implements vscode.Disposable {
     return (data ?? []).map((agent) => agent.name);
   }
 
-  async promptText(workspacePath: string, sessionId: string, text: string): Promise<string> {
+  async promptText(workspacePath: string, sessionId: string, text: string, agent = COACH_AGENT): Promise<string> {
     const client = await this.ensure(workspacePath);
     const { data, error } = await client.session.prompt({
       path: { id: sessionId },
-      body: { agent: COACH_AGENT, parts: [{ type: "text", text }] },
+      body: { agent, parts: [{ type: "text", text }] },
     });
     if (error || !data) {
       throw new Error(`The coach could not respond: ${JSON.stringify(error)}`);

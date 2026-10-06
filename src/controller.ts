@@ -8,6 +8,7 @@ import { OpencodeService } from "./opencode/service";
 import { GoalWizard } from "./panels/goalWizard";
 import { writeDocuments } from "./syllabus/documents";
 import { countTasks, generateSyllabus } from "./syllabus/generate";
+import { generateTaskGuide, writeTaskGuide } from "./syllabus/guides";
 import { createGoal, prepareWorkspace, writeSyllabus } from "./syllabus/scaffold";
 import { nowIso } from "./util/ids";
 import { CoachRequest, CoachViewProvider } from "./views/coachView";
@@ -30,6 +31,8 @@ export class CodingGuruController implements vscode.Disposable {
   private readonly service: OpencodeService;
   private readonly lint = new LintService();
   private readonly sessions = new Map<string, string>();
+  /** Separate sessions for the guide author, so manuals never pollute the coach chat. */
+  private readonly authorSessions = new Map<string, string>();
   private readonly output = vscode.window.createOutputChannel("CodingGuru");
   private currentTaskId?: string;
   private busy = false;
@@ -120,19 +123,33 @@ export class CodingGuruController implements vscode.Disposable {
       return;
     }
     if (!fs.existsSync(node.file)) {
-      // Goals created before build guides existed have no docs/ tree; the guides
-      // are deterministic, so regenerate them from the syllabus on demand.
-      const syllabus = readSyllabus(goal.workspacePath);
-      if (syllabus) {
-        writeDocuments(goal, syllabus);
+      try {
+        await this.ensureDocument(goal, node, false);
+      } catch (error) {
+        this.coach.notice(error instanceof Error ? error.message : String(error), "error");
+        return;
       }
     }
     if (!fs.existsSync(node.file)) {
       this.coach.notice("That build guide is missing. Refresh the syllabus and try again.", "error");
       return;
     }
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(node.file));
-    await vscode.window.showTextDocument(document, { preview: true });
+    await this.showDocument(node.file);
+  }
+
+  async regenerateDocument(node: DocNode): Promise<void> {
+    const goal = this.store.active;
+    if (!goal) {
+      this.coach.notice("Open a learning workspace first.", "error");
+      return;
+    }
+    try {
+      await this.ensureDocument(goal, node, true);
+    } catch (error) {
+      this.coach.notice(error instanceof Error ? error.message : String(error), "error");
+      return;
+    }
+    await this.showDocument(node.file);
   }
 
   async runLint(): Promise<void> {
@@ -419,6 +436,48 @@ export class CodingGuruController implements vscode.Disposable {
     return parts.join("\n");
   }
 
+  /** Writes the document behind a tree node, if missing (or when forced). */
+  private async ensureDocument(goal: Goal, node: DocNode, force: boolean): Promise<void> {
+    const syllabus = readSyllabus(goal.workspacePath);
+    if (!syllabus) {
+      throw new Error("No syllabus found in this workspace.");
+    }
+    if (node.scope === "section") {
+      // The index and section docs are deterministic and cheap to rewrite.
+      if (force || !fs.existsSync(node.file)) {
+        writeDocuments(goal, syllabus);
+      }
+      return;
+    }
+    const section = syllabus.sections[node.sectionIndex];
+    const taskIndex = node.taskIndex ?? 0;
+    const task = section?.tasks[taskIndex];
+    if (!section || !task) {
+      throw new Error("That task is no longer in the syllabus. Refresh the syllabus and try again.");
+    }
+    if (!force && fs.existsSync(node.file)) {
+      return;
+    }
+    const file = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `CodingGuru: writing the build guide for “${task.title}”…`,
+      },
+      () =>
+        this.withAuthorSession(goal, async (sessionId) => {
+          const body = await generateTaskGuide(this.service, goal, syllabus, section, task, sessionId);
+          return writeTaskGuide(goal, section, task, node.sectionIndex, taskIndex, body);
+        })
+    );
+    this.log(`Wrote build guide ${file}`);
+    this.tree.refresh();
+  }
+
+  private async showDocument(file: string): Promise<void> {
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+    await vscode.window.showTextDocument(document, { preview: true });
+  }
+
   private async ensureSession(goal: Goal): Promise<string> {
     const existing = this.sessions.get(goal.workspacePath);
     if (existing) {
@@ -443,6 +502,31 @@ export class CodingGuruController implements vscode.Disposable {
       this.sessions.delete(goal.workspacePath);
       bumpSessionIndex(goal.workspacePath);
       return fn(await this.ensureSession(goal));
+    }
+  }
+
+  private async ensureAuthorSession(goal: Goal): Promise<string> {
+    const existing = this.authorSessions.get(goal.workspacePath);
+    if (existing) {
+      return existing;
+    }
+    const sessionId = await this.service.createSession(goal.workspacePath, `Build guides: ${goal.title}`);
+    this.authorSessions.set(goal.workspacePath, sessionId);
+    return sessionId;
+  }
+
+  private async withAuthorSession<T>(goal: Goal, fn: (sessionId: string) => Promise<T>): Promise<T> {
+    const sessionId = await this.ensureAuthorSession(goal);
+    try {
+      return await fn(sessionId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/not\s*found|404/i.test(message)) {
+        throw error;
+      }
+      this.log(`Author session ${sessionId} is stale; starting a new one.`);
+      this.authorSessions.delete(goal.workspacePath);
+      return fn(await this.ensureAuthorSession(goal));
     }
   }
 

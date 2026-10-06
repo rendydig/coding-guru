@@ -48,12 +48,27 @@ export async function generateSyllabus(
   goal: Goal,
   sessionId: string
 ): Promise<Syllabus> {
-  const raw = await service.promptJson<RawSyllabus>(
-    goal.workspacePath,
-    sessionId,
-    syllabusPrompt(goal),
-    "the syllabus"
-  );
+  let raw: RawSyllabus;
+  try {
+    raw = await service.promptJson<RawSyllabus>(
+      goal.workspacePath,
+      sessionId,
+      syllabusPrompt(goal),
+      "the syllabus"
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // A large reply can truncate into invalid JSON; retry once with a slimmer schema.
+    if (!/valid JSON/i.test(message)) {
+      throw error;
+    }
+    raw = await service.promptJson<RawSyllabus>(
+      goal.workspacePath,
+      sessionId,
+      syllabusPrompt(goal, { compact: true }),
+      "the syllabus (retry)"
+    );
+  }
 
   const rawSections = Array.isArray(raw.sections) ? (raw.sections as RawSection[]) : [];
   const sections: Section[] = rawSections

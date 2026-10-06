@@ -23,6 +23,10 @@ export function registerCommands(context: vscode.ExtensionContext, controller: C
 
     vscode.commands.registerCommand("codingguru.openDocument", (node: DocNode) => controller.openDocument(node)),
 
+    vscode.commands.registerCommand("codingguru.regenerateDocument", (node: DocNode) =>
+      controller.regenerateDocument(node)
+    ),
+
     vscode.commands.registerCommand("codingguru.openCoach", () =>
       vscode.commands.executeCommand("codingguru.coach.focus")
     ),

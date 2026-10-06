@@ -81,7 +81,18 @@ function sectionDoc(goal: Goal, syllabus: Syllabus, section: Section, sectionInd
   return lines.join("\n");
 }
 
-function taskDoc(goal: Goal, section: Section, task: Task, sectionIndex: number, taskIndex: number): string {
+/**
+ * Composes a task's build guide: a deterministic header and footer wrapped
+ * around the model-authored `body` (setup, steps, full example, pitfalls).
+ */
+export function taskGuideMarkdown(
+  goal: Goal,
+  section: Section,
+  task: Task,
+  sectionIndex: number,
+  taskIndex: number,
+  body: string
+): string {
   const lines = [
     `# ${sectionIndex + 1}.${taskIndex + 1} ${task.title}`,
     "",
@@ -99,12 +110,12 @@ function taskDoc(goal: Goal, section: Section, task: Task, sectionIndex: number,
   if (task.concepts?.length) {
     lines.push("## Concepts", "", ...task.concepts.map((concept) => `- ${concept}`), "");
   }
-  if (task.steps?.length) {
-    lines.push("## Suggested steps", "", ...task.steps.map((step, index) => `${index + 1}. ${step}`), "");
-  }
   if (task.acceptanceCriteria.length) {
     lines.push("## Acceptance criteria", "", ...task.acceptanceCriteria.map((item) => `- [ ] ${item}`), "");
   }
+
+  lines.push(body.trim(), "");
+
   if (task.verification?.length) {
     lines.push("## How to verify", "", ...task.verification.map((step) => `- \`${step}\``), "");
   }
@@ -128,9 +139,9 @@ function taskDoc(goal: Goal, section: Section, task: Task, sectionIndex: number,
 }
 
 /**
- * Writes the `docs/` build guides: one index, one overview per section, and one
- * document per task. Deterministic — the content comes from the syllabus, so no
- * extra model call is needed. Returns the absolute paths written.
+ * Writes the deterministic part of `docs/`: the index and one overview per
+ * section. Task guides are authored on demand (see `guides.ts`) and cached
+ * separately. Returns the absolute paths written.
  */
 export function writeDocuments(goal: Goal, syllabus: Syllabus): string[] {
   const dir = docsDir(goal.workspacePath);
@@ -144,9 +155,6 @@ export function writeDocuments(goal: Goal, syllabus: Syllabus): string[] {
   write(INDEX_FILE, docsIndex(goal, syllabus));
   syllabus.sections.forEach((section, sectionIndex) => {
     write(sectionFileName(section, sectionIndex), sectionDoc(goal, syllabus, section, sectionIndex));
-    section.tasks.forEach((task, taskIndex) => {
-      write(taskFileName(task, sectionIndex, taskIndex), taskDoc(goal, section, task, sectionIndex, taskIndex));
-    });
   });
   return written;
 }

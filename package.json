@@ -103,6 +103,11 @@
         "icon": "$(book)"
       },
       {
+        "command": "codingguru.regenerateDocument",
+        "title": "CodingGuru: Regenerate Build Guide",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "codingguru.openCoach",
         "title": "CodingGuru: Open Coach",
         "icon": "$(comment-discussion)"
@@ -156,8 +161,13 @@
         },
         {
           "command": "codingguru.openDocument",
-          "when": "view == codingguru.syllabus && viewItem == codingguru.doc",
+          "when": "view == codingguru.syllabus && viewItem =~ /^codingguru\\.doc/",
           "group": "inline@1"
+        },
+        {
+          "command": "codingguru.regenerateDocument",
+          "when": "view == codingguru.syllabus && viewItem == codingguru.doc.task",
+          "group": "inline@2"
         },
         {
           "command": "codingguru.openGoal",
@@ -185,6 +195,10 @@
         },
         {
           "command": "codingguru.openDocument",
+          "when": "false"
+        },
+        {
+          "command": "codingguru.regenerateDocument",
           "when": "false"
         }
       ]
