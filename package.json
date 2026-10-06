@@ -2,7 +2,7 @@
   "name": "codingguru",
   "displayName": "CodingGuru",
   "description": "Goal-driven coding coach: generate a syllabus, scaffold a learning workspace, and get read-only AI coaching.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "codingguru",
   "license": "MIT",
   "engines": {
