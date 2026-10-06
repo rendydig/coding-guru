@@ -1,0 +1,212 @@
+{
+  "name": "codingguru",
+  "displayName": "CodingGuru",
+  "description": "Goal-driven coding coach: generate a syllabus, scaffold a learning workspace, and get read-only AI coaching.",
+  "version": "0.1.0",
+  "publisher": "codingguru",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "keywords": [
+    "coach",
+    "learning",
+    "syllabus",
+    "opencode",
+    "mentor"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codingguru",
+          "title": "CodingGuru",
+          "icon": "media/guru.svg"
+        }
+      ]
+    },
+    "views": {
+      "codingguru": [
+        {
+          "id": "codingguru.syllabus",
+          "name": "Syllabus",
+          "icon": "media/syllabus.svg"
+        },
+        {
+          "id": "codingguru.coach",
+          "name": "Coach",
+          "type": "webview",
+          "icon": "media/coach.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "codingguru.syllabus",
+        "contents": "No learning goal yet.\n\nCodingGuru turns a goal into a step-by-step syllabus, scaffolds a workspace, and coaches you through it.\n[Create Learning Goal](command:codingguru.createGoal)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "codingguru.createGoal",
+        "title": "CodingGuru: Create Learning Goal",
+        "icon": "$(add)"
+      },
+      {
+        "command": "codingguru.openGoal",
+        "title": "CodingGuru: Open Learning Workspace",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "codingguru.refreshSyllabus",
+        "title": "CodingGuru: Refresh Syllabus",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codingguru.startTask",
+        "title": "CodingGuru: Start Task",
+        "icon": "$(play)"
+      },
+      {
+        "command": "codingguru.reviewTask",
+        "title": "CodingGuru: Review Task with Coach",
+        "icon": "$(check)"
+      },
+      {
+        "command": "codingguru.markTaskDone",
+        "title": "CodingGuru: Mark Task Done",
+        "icon": "$(pass-filled)"
+      },
+      {
+        "command": "codingguru.openCoach",
+        "title": "CodingGuru: Open Coach",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "codingguru.runLint",
+        "title": "CodingGuru: Run Lint Check",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "codingguru.askProgress",
+        "title": "CodingGuru: Ask Coach About Progress"
+      },
+      {
+        "command": "codingguru.setOpencodePath",
+        "title": "CodingGuru: Set OpenCode Executable Path"
+      },
+      {
+        "command": "codingguru.showLog",
+        "title": "CodingGuru: Show Log"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codingguru.createGoal",
+          "when": "view == codingguru.syllabus",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codingguru.refreshSyllabus",
+          "when": "view == codingguru.syllabus",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codingguru.startTask",
+          "when": "view == codingguru.syllabus && viewItem == codingguru.task",
+          "group": "inline@1"
+        },
+        {
+          "command": "codingguru.reviewTask",
+          "when": "view == codingguru.syllabus && viewItem == codingguru.task",
+          "group": "inline@2"
+        },
+        {
+          "command": "codingguru.markTaskDone",
+          "when": "view == codingguru.syllabus && viewItem == codingguru.task",
+          "group": "inline@3"
+        },
+        {
+          "command": "codingguru.openGoal",
+          "when": "view == codingguru.syllabus && viewItem == codingguru.goal",
+          "group": "inline@1"
+        },
+        {
+          "command": "codingguru.askProgress",
+          "when": "view == codingguru.syllabus && viewItem == codingguru.goal",
+          "group": "inline@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codingguru.startTask",
+          "when": "false"
+        },
+        {
+          "command": "codingguru.reviewTask",
+          "when": "false"
+        },
+        {
+          "command": "codingguru.markTaskDone",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodingGuru",
+      "properties": {
+        "codingguru.workspaceRoot": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Folder where learning workspaces are created. Defaults to `~/CodingGuru`."
+        },
+        "codingguru.opencodePath": {
+          "type": "string",
+          "default": "opencode",
+          "description": "Path to the OpenCode executable used to run the Coach."
+        },
+        "codingguru.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model for the Coach (e.g. `9router/openrouter/deepseek/deepseek-v4.1-flash`). Empty uses your OpenCode default model."
+        },
+        "codingguru.coachAllowBash": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow the read-only Coach to request shell commands (they are never auto-approved). File edits stay disabled either way."
+        },
+        "codingguru.autoReview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run a lint check automatically before reviewing a task."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs",
+    "package": "vsce package --no-dependencies --allow-missing-repository",
+    "vscode:prepublish": "node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "1.18.34"
+  }
+}
