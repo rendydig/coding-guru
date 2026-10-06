@@ -2,7 +2,7 @@
   "name": "codingguru",
   "displayName": "CodingGuru",
   "description": "Goal-driven coding coach: generate a syllabus, scaffold a learning workspace, and get read-only AI coaching.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "codingguru",
   "license": "MIT",
   "engines": {
@@ -20,6 +20,9 @@
     "mentor"
   ],
   "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/.codingguru/**"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -33,19 +36,31 @@
     "views": {
       "codingguru": [
         {
+          "id": "codingguru.getStarted",
+          "name": "Get started",
+          "icon": "media/guru.svg",
+          "when": "!codingguru.hasWorkspace"
+        },
+        {
           "id": "codingguru.syllabus",
           "name": "Syllabus",
-          "icon": "media/syllabus.svg"
+          "icon": "media/syllabus.svg",
+          "when": "codingguru.hasWorkspace"
         },
         {
           "id": "codingguru.coach",
           "name": "Coach",
           "type": "webview",
-          "icon": "media/coach.svg"
+          "icon": "media/coach.svg",
+          "when": "codingguru.hasWorkspace"
         }
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "codingguru.getStarted",
+        "contents": "This folder is not a CodingGuru learning workspace.\n\nCodingGuru turns a goal into a step-by-step syllabus, scaffolds a workspace, and coaches you through it.\n[Create Learning Goal](command:codingguru.createGoal)"
+      },
       {
         "view": "codingguru.syllabus",
         "contents": "No learning goal yet.\n\nCodingGuru turns a goal into a step-by-step syllabus, scaffolds a workspace, and coaches you through it.\n[Create Learning Goal](command:codingguru.createGoal)"
@@ -194,8 +209,10 @@
   "scripts": {
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p . --noEmit && tsc -p src/webview --noEmit",
     "smoke": "node scripts/smoke.mjs",
+    "docs:check": "node scripts/docs-check.mjs",
+    "sandbox": "node scripts/dev-host.mjs",
     "package": "vsce package --no-dependencies --allow-missing-repository",
     "vscode:prepublish": "node esbuild.js --production"
   },
@@ -207,6 +224,9 @@
     "typescript": "^5.6.0"
   },
   "dependencies": {
-    "@opencode-ai/sdk": "1.18.34"
+    "@opencode-ai/sdk": "1.18.34",
+    "dompurify": "^3.4.16",
+    "highlight.js": "^11.12.0",
+    "markdown-it": "^15.0.2"
   }
 }

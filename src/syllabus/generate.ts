@@ -9,11 +9,16 @@ interface RawTask {
   acceptanceCriteria?: unknown;
   resources?: unknown;
   verification?: unknown;
+  deliverable?: unknown;
+  why?: unknown;
+  concepts?: unknown;
+  steps?: unknown;
 }
 
 interface RawSection {
   title?: unknown;
   description?: unknown;
+  overview?: unknown;
   tasks?: unknown;
 }
 
@@ -27,6 +32,15 @@ function toStringArray(value: unknown): string[] {
     return [];
   }
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function optionalStringArray(value: unknown): string[] | undefined {
+  const items = toStringArray(value);
+  return items.length ? items : undefined;
 }
 
 export async function generateSyllabus(
@@ -55,11 +69,16 @@ export async function generateSyllabus(
           acceptanceCriteria: toStringArray(task.acceptanceCriteria),
           resources: toStringArray(task.resources),
           verification: toStringArray(task.verification),
+          deliverable: optionalString(task.deliverable),
+          why: optionalString(task.why),
+          concepts: optionalStringArray(task.concepts),
+          steps: optionalStringArray(task.steps),
         }));
       return {
         id: newId("sec"),
         title: String(section.title),
         description: typeof section.description === "string" ? section.description : "",
+        overview: optionalString(section.overview),
         tasks,
       };
     })

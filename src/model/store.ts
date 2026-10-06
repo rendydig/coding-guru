@@ -5,6 +5,7 @@ import * as vscode from "vscode";
 import { Goal, Progress, Syllabus, TaskProgress } from "./types";
 
 export const CG_DIR = ".codingguru";
+export const DOCS_DIR = "docs";
 export const GOAL_FILE = "goal.json";
 export const SYLLABUS_FILE = "syllabus.json";
 export const PROGRESS_FILE = "progress.json";
@@ -31,6 +32,10 @@ export function slugify(input: string): string {
 
 export function cgDir(workspacePath: string): string {
   return path.join(workspacePath, CG_DIR);
+}
+
+export function docsDir(workspacePath: string): string {
+  return path.join(workspacePath, DOCS_DIR);
 }
 
 export function goalFile(workspacePath: string): string {
@@ -142,6 +147,13 @@ export class Store implements vscode.Disposable {
 
   get active(): Goal | undefined {
     return this._active;
+  }
+
+  /** True when an open workspace folder is a CodingGuru learning workspace. */
+  get hasWorkspace(): boolean {
+    return (vscode.workspace.workspaceFolders ?? []).some(
+      (folder) => folder.uri.scheme === "file" && fs.existsSync(cgDir(folder.uri.fsPath))
+    );
   }
 
   setActive(goal: Goal | undefined): void {

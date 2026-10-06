@@ -1,0 +1,121 @@
+/*
+ * highlight.js token colours.
+ *
+ * highlight.js ships its themes as globally-scoped `.hljs` rules, so importing
+ * both a light and a dark theme means whichever loads last always wins. Instead
+ * the palette lives in variables and switches on VS Code's theme class, which
+ * is applied to <body> by the webview host.
+ *
+ * Dark defaults come from the vs2015 theme, light overrides from vs.
+ */
+
+body {
+  --cg-tok-keyword: #569cd6;
+  --cg-tok-string: #ce9178;
+  --cg-tok-comment: #6a9955;
+  --cg-tok-number: #b5cea8;
+  --cg-tok-function: #dcdcaa;
+  --cg-tok-variable: #9cdcfe;
+  --cg-tok-type: #4ec9b0;
+  --cg-tok-tag: #569cd6;
+  --cg-tok-meta: #569cd6;
+  --cg-tok-regexp: #d16969;
+  --cg-tok-addition: #b5cea8;
+  --cg-tok-deletion: #ce9178;
+}
+
+body.vscode-light {
+  --cg-tok-keyword: #0000ff;
+  --cg-tok-string: #a31515;
+  --cg-tok-comment: #008000;
+  --cg-tok-number: #098658;
+  --cg-tok-function: #795e26;
+  --cg-tok-variable: #001080;
+  --cg-tok-type: #267f99;
+  --cg-tok-tag: #800000;
+  --cg-tok-meta: #0000ff;
+  --cg-tok-regexp: #811f3f;
+  --cg-tok-addition: #098658;
+  --cg-tok-deletion: #a31515;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.hljs-doctag,
+.hljs-name,
+.hljs-selector-tag,
+.hljs-meta .hljs-keyword {
+  color: var(--cg-tok-keyword);
+}
+
+.hljs-string,
+.hljs-meta .hljs-string,
+.hljs-attribute,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+  color: var(--cg-tok-string);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--cg-tok-comment);
+  font-style: italic;
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--cg-tok-number);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-title.function_ {
+  color: var(--cg-tok-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr,
+.hljs-property,
+.hljs-params,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: var(--cg-tok-variable);
+}
+
+.hljs-type,
+.hljs-built_in,
+.hljs-title.class_,
+.hljs-class .hljs-title {
+  color: var(--cg-tok-type);
+}
+
+.hljs-tag {
+  color: var(--cg-tok-tag);
+}
+
+.hljs-meta {
+  color: var(--cg-tok-meta);
+}
+
+.hljs-regexp {
+  color: var(--cg-tok-regexp);
+}
+
+.hljs-addition {
+  color: var(--cg-tok-addition);
+}
+
+.hljs-deletion {
+  color: var(--cg-tok-deletion);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}

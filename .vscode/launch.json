@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run CodingGuru",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "sourceMaps": true,
+      "preLaunchTask": "watch",
+      "presentation": {
+        "group": "codingguru",
+        "order": 1
+      }
+    },
+    {
+      "name": "Run CodingGuru (sandbox)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--user-data-dir=${workspaceFolder}/.dev-sandbox/user-data",
+        "--disable-extensions",
+        "--disable-workspace-trust"
+      ],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "sourceMaps": true,
+      "preLaunchTask": "watch",
+      "presentation": {
+        "group": "codingguru",
+        "order": 2
+      }
+    }
+  ]
+}

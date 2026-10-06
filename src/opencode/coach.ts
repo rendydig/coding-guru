@@ -95,15 +95,20 @@ export function taskContext(section: Section, task: Task): string {
   const verification = task.verification?.length
     ? `\nVerification steps:\n${task.verification.map((v) => `- ${v}`).join("\n")}`
     : "";
-  return [
+  const lines = [
     `## Current syllabus item`,
     `Section: ${section.title}`,
     `Task: ${task.title}`,
     `Description: ${task.description}`,
-    ``,
-    `Acceptance criteria:`,
-    criteria + verification,
-  ].join("\n");
+  ];
+  if (task.deliverable) {
+    lines.push(`What the learner should build: ${task.deliverable}`);
+  }
+  if (task.concepts?.length) {
+    lines.push(`Concepts: ${task.concepts.join(", ")}`);
+  }
+  lines.push(``, `Acceptance criteria:`, criteria + verification);
+  return lines.join("\n");
 }
 
 export function syllabusPrompt(goal: Goal): string {
@@ -121,6 +126,9 @@ export function syllabusPrompt(goal: Goal): string {
     "- Acceptance criteria must be observable (e.g. 'server responds 200 on GET /health').",
     "- Include verification steps (commands or manual checks) where useful.",
     "- Assume the learner starts with a fresh, empty project directory.",
+    "- For every section, write an `overview` describing what the learner will have built by the end.",
+    "- For every task, describe the concrete artifact in `deliverable` (what they will build), a one-sentence `why`, 2 to 5 `concepts`, and a 3 to 6 item `steps` outline.",
+    "- Keep `deliverable`, `why`, and each list item to a single short sentence so the JSON stays compact.",
     "",
     "Reply with ONLY a JSON object in exactly this shape (no prose, no code fences):",
     JSON.stringify(
@@ -130,10 +138,15 @@ export function syllabusPrompt(goal: Goal): string {
           {
             title: "string",
             description: "string",
+            overview: "string",
             tasks: [
               {
                 title: "string",
                 description: "string",
+                deliverable: "string",
+                why: "string",
+                concepts: ["string"],
+                steps: ["string"],
                 acceptanceCriteria: ["string"],
                 resources: ["string"],
                 verification: ["string"],

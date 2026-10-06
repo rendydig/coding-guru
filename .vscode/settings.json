@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    ".dev-sandbox": true
+  },
+  "search.exclude": {
+    ".dev-sandbox": true,
+    "dist": true,
+    "package-lock.json": true
+  },
+  "files.watcherExclude": {
+    "**/.dev-sandbox/**": true,
+    "**/dist/**": true
+  }
+}

@@ -9,12 +9,22 @@ export interface Task {
   acceptanceCriteria: string[];
   resources?: string[];
   verification?: string[];
+  /** What the learner will actually build for this task. */
+  deliverable?: string;
+  /** Why this task matters on the way to the goal. */
+  why?: string;
+  /** Key concepts the task exercises. */
+  concepts?: string[];
+  /** A short, ordered outline of how to build it. */
+  steps?: string[];
 }
 
 export interface Section {
   id: string;
   title: string;
   description: string;
+  /** What the learner will have built by the end of the section. */
+  overview?: string;
   tasks: Task[];
 }
 

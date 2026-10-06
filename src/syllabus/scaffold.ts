@@ -17,6 +17,7 @@ import {
 } from "../model/store";
 import { buildOpencodeConfig, COACH_PERSONA } from "../opencode/coach";
 import { newId, nowIso } from "../util/ids";
+import { sectionFileName, taskFileName, writeDocuments } from "./documents";
 
 export function uniqueWorkspacePath(title: string): { slug: string; workspacePath: string } {
   const root = workspaceRoot();
@@ -63,6 +64,7 @@ export function prepareWorkspace(goal: Goal, model: string, allowBash: boolean):
 export function writeSyllabus(goal: Goal, syllabus: Syllabus): void {
   writeJson(syllabusFile(goal.workspacePath), syllabus);
   writeText(path.join(goal.workspacePath, "README.md"), readme(goal, syllabus));
+  writeDocuments(goal, syllabus);
 }
 
 function agentsMd(goal: Goal): string {
@@ -83,8 +85,13 @@ This folder is a **learning workspace** for the goal: **${goal.title}**.
 - \`.codingguru/syllabus.json\` — sections and tasks
 - \`.codingguru/progress.json\` — per-task status and review notes
 - \`.codingguru/coach-prompt.md\` — the coach persona
+- \`docs/\` — one build guide per section and per task
 - \`opencode.json\` — the read-only coach agent definition
 `;
+}
+
+function docsLink(fileName: string): string {
+  return `docs/${fileName}`;
 }
 
 function readme(goal: Goal, syllabus: Syllabus): string {
@@ -104,8 +111,10 @@ function readme(goal: Goal, syllabus: Syllabus): string {
     if (section.description) {
       lines.push(section.description, "");
     }
-    section.tasks.forEach((task) => {
-      lines.push(`- [ ] **${task.title}** — ${task.description}`);
+    lines.push(`[Read the full section guide](${docsLink(sectionFileName(section, sectionIndex))})`, "");
+    section.tasks.forEach((task, taskIndex) => {
+      const guide = docsLink(taskFileName(task, sectionIndex, taskIndex));
+      lines.push(`- [ ] **${task.title}** — ${task.description} · [guide](${guide})`);
       for (const criterion of task.acceptanceCriteria) {
         lines.push(`  - _done when:_ ${criterion}`);
       }
@@ -115,9 +124,10 @@ function readme(goal: Goal, syllabus: Syllabus): string {
   lines.push(
     "---",
     "",
-    "Work through the tasks in order. When you think a task is finished, run",
-    "**CodingGuru: Review Task with Coach** from the command palette (or the check",
-    "icon in the Syllabus view) to get it reviewed.",
+    "Each task links to a build guide under `docs/` that explains what you will",
+    "build and why. Work through the tasks in order. When you think a task is",
+    "finished, run **CodingGuru: Review Task with Coach** from the command palette",
+    "(or the check icon in the Syllabus view) to get it reviewed.",
     ""
   );
   return lines.join("\n");

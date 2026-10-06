@@ -12,7 +12,14 @@ and provides a read-only OpenCode-powered coach.
 | `npm run watch` | Rebuild on change |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run smoke` | End-to-end check against a real `opencode serve` (needs the OpenCode CLI and a reachable model) |
+| `npm run docs:check` | Render the syllabus build guides from a fixture and assert the `docs/` files (no model needed) |
+| `npm run sandbox` | Launch an isolated Extension Development Host (own profile, other extensions disabled) |
 | `npm run package` | Produce `codingguru-<version>.vsix` |
+
+Press <kbd>F5</kbd> to debug; `.vscode/launch.json` offers a normal dev host and a
+sandboxed one, both gated on the `watch` background task. `esbuild.js` prints
+`[esbuild] watching…` / `[esbuild] build finished` markers that the task's problem
+matcher depends on — keep those strings if you edit the build script.
 
 ## Verifying a change
 
@@ -36,3 +43,15 @@ registration, read-only enforcement, and streaming.
   coach agent is added without disturbing their providers or default model.
 - Learning workspaces are created under `~/CodingGuru/<slug>/` (configurable). All
   per-goal state lives in `.codingguru/*.json`.
+- **Views are gated on the `codingguru.hasWorkspace` context key.** `package.json`
+  hides `codingguru.syllabus` / `codingguru.coach` unless an open folder contains a
+  `.codingguru` directory, and shows `codingguru.getStarted` otherwise. The key is
+  set in `src/extension.ts` and kept fresh by `Store.onDidChange`; the
+  `workspaceContains:**/.codingguru/**` activation event keeps the extension dormant
+  in unrelated folders. Keep these in sync if you add or rename views.
+- **Build guides in `docs/` are generated, not authored.** `src/syllabus/documents.ts`
+  renders one index, one overview per section, and one document per task straight from
+  `syllabus.json` — no extra model call. The explanatory fields (`section.overview`,
+  `task.deliverable/why/concepts/steps`) come from the same `syllabusPrompt` call, so if
+  you change that JSON schema, update the parser in `generate.ts` and the renderer in
+  `documents.ts` together.
