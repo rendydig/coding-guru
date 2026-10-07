@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# Secret-scan the files staged for this commit, so credentials never land in
+# history. Run the full-repo scan any time with `npm run secrets`.
+#
+# Activate this hook once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass a false positive with:  git commit --no-verify
+
+if [ -x node_modules/.bin/secretlint ]; then
+  SECRETLINT=node_modules/.bin/secretlint
+elif [ -f node_modules/.bin/secretlint.cmd ]; then
+  SECRETLINT=node_modules/.bin/secretlint.cmd
+else
+  echo "secretlint is not installed; run 'npm install' first." >&2
+  exit 1
+fi
+
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+
+git diff --cached --name-only --diff-filter=ACMR > "$list"
+if [ ! -s "$list" ]; then
+  exit 0
+fi
+
+status=0
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  [ -f "$file" ] || continue
+  if ! "$SECRETLINT" "./$file"; then
+    status=1
+  fi
+done < "$list"
+
+if [ "$status" -ne 0 ]; then
+  echo "" >&2
+  echo "secretlint found potential secrets in your staged changes." >&2
+  echo "Remove them (and rotate the credential if it was real), then try again." >&2
+  echo "To bypass this check: git commit --no-verify" >&2
+  exit 1
+fi

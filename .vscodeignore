@@ -9,4 +9,13 @@ tsconfig.json
 **/*.ts
 dist/webview/_*
 nul
+.env*
+*.local
+opencode.json
+auth.json
+.github/**
+.githooks/**
+SECURITY.md
+.secretlintrc.json
+.secretlintignore
 !media/**

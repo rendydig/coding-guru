@@ -3,3 +3,14 @@ dist/
 *.vsix
 .dev-sandbox/
 .DS_Store
+
+# Secrets and local-only config — never commit these
+.env
+.env.*
+!.env.example
+*.local
+opencode.json
+auth.json
+
+# Local editor overrides
+.vscode/*.local.json

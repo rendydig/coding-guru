@@ -13,6 +13,7 @@ and provides a read-only OpenCode-powered coach.
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run smoke` | End-to-end check against a real `opencode serve` (needs the OpenCode CLI and a reachable model) |
 | `npm run docs:check` | Render the syllabus build guides from a fixture and assert the `docs/` files (no model needed) |
+| `npm run secrets` | Scan the tree for committed credentials with secretlint |
 | `npm run sandbox` | Launch an isolated Extension Development Host (own profile, other extensions disabled) |
 | `npm run package` | Produce `codingguru-<version>.vsix` |
 
@@ -26,6 +27,23 @@ matcher depends on — keep those strings if you edit the build script.
 Run `npm run typecheck && npm run build`. For anything touching
 `src/opencode/`, also run `npm run smoke` — it asserts server startup, coach agent
 registration, read-only enforcement, and streaming.
+
+## Secrets — before you push
+
+- **Never commit credentials, tokens, or `.env` files.** Provider keys live in the
+  user's own OpenCode config; this repo only injects agent definitions through
+  `OPENCODE_CONFIG_CONTENT`.
+- Run `npm run secrets` (secretlint) before pushing. Rules are in
+  `.secretlintrc.json`; `.secretlintignore` skips `node_modules/`, `dist/`, `*.vsix`,
+  and the lockfile.
+- A tracked pre-commit hook scans staged files. Enable it once per clone with
+  `git config core.hooksPath .githooks`.
+- `.github/workflows/secret-scan.yml` runs gitleaks on every push and pull request,
+  over the full history.
+- `.gitignore` / `.vscodeignore` exclude `.env*`, `*.local`, `opencode.json`, and
+  `auth.json`. Keep them in sync if you add secret-bearing config.
+- If a secret ever lands in history, **rotate the credential first**, then rewrite
+  history.
 
 ## Things to know before editing
 
